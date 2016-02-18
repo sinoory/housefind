@@ -1,0 +1,35 @@
+
+        <table id='idtabjobs'>        
+            <tr>
+                <td>job</td>              
+                <td>company</td>          
+                <td>
+                    <select id='idlocal' onchange="querryJobs()">
+                        {% for l in joblocals %}  
+                        <option  >{{l}}</option>  
+                        {% endfor %}          
+                    </select>             
+                </td>
+                <td>
+                    <select id='idstatus' onchange='querryJobs()'>
+                        {% for l in jobstatus %}  
+                        <option  >{{l}}</option>  
+                        {% endfor %}          
+                    </select>             
+                </td>
+                <td>update</td>
+                <td>senddate</td>
+                <td>sendcnt</td>
+            </tr>
+            {% for job in joblist %}  
+            <tr id='{{job.id}}'>          
+                <td><a href='{{ job.jobu }}' target='_blank'  >{{ job.job |slice:"20" }}</a></td>
+                <td><a href='{{job.courl}}'>{{ job.coname |slice:"20"}}</a></td>                                                            
+                <td>{{ job.local }}</td>  
+                <td>{{ job.state }}</td>  
+                <td>{{ job.udate }}</td>  
+                <td>{{ job.sendate }}</td>
+                <td>{{ job.sendcnt }}</td>
+            </tr>
+            {% endfor %}
+        </table>

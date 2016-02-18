@@ -1,0 +1,107 @@
+<html>
+    <head>
+        <style type="text/css">
+        .hilight
+        {
+        background-color: #cccc00;
+        }
+        </style>
+        <script type="text/javascript" src="../../../static/js/jquery-1.10.1.js"></script>
+        <script type="text/javascript" src="../../../static/js/jscolor/jscolor.js"></script>
+        <script language="javascript">
+            function showJobs(){
+                $("#idstatus").val("get")
+                //$("#idtabjobs tr:gt(0)").remove();
+            }
+            var lastStatus=""
+            var lastLocal=""
+            function querryJobs(){
+                status=$("#idstatus").find("option:selected").text()
+                local=$("#idlocal").find("option:selected").text()
+                lastStatus=status
+                lastLocal=local
+                dbg("querryJobs local="+local+",status="+status)
+                postdata={
+                    cmd:"SHOW_JOBS",
+                    local:local,
+                    status:status
+                }
+             var aj = $.ajax( { 
+                type:'post',
+                cache:'false',
+                data:postdata,
+                success:function(data){
+                   $("#idivtable").html(data)
+                   $("#idstatus").val(lastStatus)
+                   $("#idlocal").val(lastLocal)
+                },
+                error:function(){
+                    dbg("stop error");
+                },
+
+            }); 
+
+            }
+            var stopUpdate=false
+            function stopUpdatejob(){
+                stopUpdate=true
+            }
+            function updateJob(tr){
+            if(stopUpdate){
+                dbg("user stoped,exit")
+                return
+            }
+            var postdata={
+                cmd:"UPDATE_JOB",
+                id:tr.attr("id")
+            }
+            if(postdata.id.length<1){
+                return
+            }
+            tr.css("background-color","#cccc00")
+            var aj = $.ajax( { 
+                type:'post',
+                cache:'false',
+                data:postdata,
+                success:function(data){
+                    data=JSON.parse(data)
+                    if(data.res=="updated"){
+                        tr.css("background-color","#0000ff")
+                    }else{
+                        tr.css("background-color","#ffffff")
+                    }
+                    var trn=tr.next("tr")
+                    if(trn){
+                        updateJob(trn)
+                    }
+                },
+                error:function(){
+                    tr.css("background-color","#ff0000")
+                    dbg("stop error");
+                },
+
+            }); 
+
+            }
+            function updateJobs(){
+                var tr=$("#idtabjobs tr:gt(0):eq(0) ")
+                stopUpdate=false
+                updateJob(tr)
+            }
+            function dbg(msg){
+                $("#log").text($("#log").text()+"||||"+msg)
+            }
+
+        </script>
+    </head>
+    
+    <body>
+        <p id='log'></p>
+        <a href="/jobfind/querry">go querry</a>
+        <button onclick='updateJobs()'>update jobs</button>
+        <button onclick='stopUpdatejob()'>stop update jobs</button>
+        <div id='idivtable'>
+        {% include 'jobfind/viewljobs_table.html' %} <!-- Lesson django template: keep the same dir for included html with in the views.py , otherwith error 500 happend -->
+        </div>
+    </body>
+</html>

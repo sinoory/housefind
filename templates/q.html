@@ -1,0 +1,541 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head>
+  
+  <meta content="text/html; charset=UTF-8" http-equiv="content-type">
+
+  
+  <script type="text/javascript" src="../../../static/js/jquery-1.10.1.js"></script>
+  
+  <script language="javascript">
+        function dbg(msg){
+            $("#console").html(msg+"<br>"+$("#console").html());
+        }
+        function startquerry(){
+            curCmd.onStart()
+            querry()
+        }
+        function stopquerry(){
+            var postdata={
+                searchkey:"STOP",
+            }
+            dbg("stop...")
+            curCmd.mUserStoped=true
+             var aj = $.ajax( { 
+                type:'post',
+                cache:'false',
+                data:postdata,
+                success:function(data){
+		            data = JSON.parse(data);
+                    dbg("stop() post res="+data.code)
+                    //$("#coname").text(job.coname);
+                },
+                error:function(){
+                    dbg("stop error");
+                },
+
+            }); 
+        } 
+       
+        var KEYWORDTYPE_SEARCH_WITH_FULL_TEXT=2
+        var KEYWORDTYPE_SEARCH_WITH_COMPANY_NAME=0
+        var SEVER_ACTION_GET_JOBS_TO_DB=0
+        var SEVER_ACTION_SCAN_COMPANY_SCORE_TO_DB=1
+        var CMD_SEATCH_WITH_COMPANY_NAME=0
+        var CMD_SEATCH_WITH_FULL_TEXT=2
+        function Cmd(){
+            this.cmdName="NoCmd"
+            this.mIdSearchKey="#idsearchkey"
+            this.mKeywordSearchType=KEYWORDTYPE_SEARCH_WITH_FULL_TEXT
+            this.mExtraCmd="NO_CMD"
+            this.mSeverAction=SEVER_ACTION_GET_JOBS_TO_DB
+            this.mMustContainKeys=new Array()
+            this.mUserStoped=false
+            this.mStartTm=""
+            this.settingkey="Setting_"+this.cmdName
+        }
+        Cmd.prototype={
+            showorhideElement:function(bshow){
+                dbg("Cmd["+this.cmdName+"]:showElement")
+            },
+            isInputValid:function(){
+                if($(this.mIdSearchKey).val().length<2){
+                    dbg("["+this.cmdName+"]Input search key please!")
+                    return false
+                }
+                return true
+            },
+            getSettingkey:function(){
+                return "Setting_"+this.cmdName
+            },
+            saveSetting:function(){
+                var js={
+                   workArea:getJobArea(),
+                   publishday:$("#idpublishday").val()
+                }
+                localStorage[this.getSettingkey()]=JSON.stringify(js)
+            },
+            prepData:function(){
+            },
+            onStart:function(){
+                this.mStartTm=new Date()
+            },
+            getQuerryJson:function(){
+            var postdata={
+                searchkey:$(this.mIdSearchKey).val(),
+                workarea:getJobArea(),
+                publishday:$("#idpublishday").val(),
+                keywordtype:this.mKeywordSearchType,
+                filterkeys:this.mMustContainKeys.join(","),
+                extracmd:this.mExtraCmd,
+                serverActionType:this.mSeverAction
+            }
+                return postdata
+            },
+            getHelpStr:function(){
+                return "UnImplement"
+            },
+            onSuccessRes:function(data){
+            },
+            isFinished:function(){
+                return this.mIsFinished
+            },
+        }
+        //=============CmdConbination==========
+        function CmdConbination(cmdArr){
+            this.cmdName="Cmd_conbination"
+            this.mCmdArr=cmdArr
+            this.mCmdIndex=0
+        }
+        CmdConbination.prototype={
+            showorhideElement:function(bshow){
+                return this.mCmdArr[mCmdIndex].showorhideElement(bshow)
+            },
+            isInputValid:function(){
+                return this.mCmdArr[mCmdIndex].isInputValid()
+            },
+            getSettingkey:function(){
+                return this.mCmdArr[mCmdIndex].getSettingkey()
+            },
+            saveSetting:function(){
+            },
+            prepData:function(){
+                return this.mCmdArr[mCmdIndex].prepData()
+            },
+            onStart:function(){
+                this.mStartTm=new Date()
+            },
+            getQuerryJson:function(){
+                return this.mCmdArr[mCmdIndex].getQuerryJson()
+            },
+            getHelpStr:function(){
+                return "UnImplement"
+            },
+            onSuccessRes:function(data){
+                if(this.mCmdArr[mCmdIndex].mUserStoped){
+                    dbg(this.mCmdArr[0].mStartTm+"======>"+(new Date()))
+                }else if(this.mCmdArr[mCmdIndex].onSuccessRes(data)){//current cmd still need run
+                }else{
+                    
+                }
+            },
+        }
+
+
+
+        //=====================================
+        function restoryUiFromSetting(settingJs){
+            var workArea=settingJs.workArea
+            var arryArea=new Array()
+            arryArea=workArea.split(",")
+            var publishday=settingJs.publishday
+            $("#idpublishday").val(publishday)
+            //$("input")[0].checked = true;
+            $("input[name='idJobArea']").each(function() {
+                var val=$(this).attr('value')
+                if($.inArray(val,arryArea)!=-1){
+                    this.checked=true  //Lesson set checked or not
+                }else{
+                    this.checked=false
+                }
+            })
+           
+        }
+        //=================CmdQuerry=============
+        function CmdQuerry(){
+            Cmd.call(this)
+            this.cmdName="Cmd_querry_full_text"
+        }
+        CmdQuerry.prototype=new Cmd()
+        CmdQuerry.prototype.prepData=function(){
+            this.mMustContainKeys=mHistoryOks.keysArr
+        }
+        CmdQuerry.prototype.showorhideElement=function(bshow){
+            if(bshow){
+                $("#idsearchkey").show()
+            }else{
+                $("#idsearchkey").hide()
+            }
+        }
+        //================CmdQuerryFavorCmpanys=======
+        function CmdQuerryFavorCmpanys(){
+            Cmd.call(this)
+            this.cmdName="Cmd_querry_favor_companys"
+            this.mKeywordSearchType=KEYWORDTYPE_SEARCH_WITH_COMPANY_NAME
+        }
+        CmdQuerryFavorCmpanys.prototype=new Cmd()
+        CmdQuerryFavorCmpanys.prototype.prepData=function(){
+            this.mMustContainKeys=mHistoryOks.keysArr
+        }
+        CmdQuerryFavorCmpanys.prototype.showorhideElement=function(bshow){
+            if(bshow){
+                $("#idselCompanys").show()
+                $("#idsearchkey").show()
+            }else{
+                $("#idselCompanys").hide()
+                $("#idsearchkey").hide()
+            }
+        }
+        CmdQuerryFavorCmpanys.prototype.isInputValid=function(){return true}
+        CmdQuerryFavorCmpanys.prototype.prepData=function(){
+            $("#idsearchkey").val($("#idselCompanys").val())
+        }
+        CmdQuerryFavorCmpanys.prototype.onSuccessRes=function(data){
+            if(!companyLoopQuerry("#idselCompanys",this.cmdName,this.mUserStoped)){
+                dbg("Cmd["+this.cmdName+"] "+this.mStartTm+"====>"+(new Date()))
+            }
+        }
+        //===============CmdQuerryHighScoreCmpanys==========
+        function CmdQuerryHighScoreCmpanys(){
+            Cmd.call(this)
+            this.cmdName="Cmd_querry_high_score_companys"
+            this.mKeywordSearchType=KEYWORDTYPE_SEARCH_WITH_COMPANY_NAME
+        }
+        CmdQuerryHighScoreCmpanys.prototype=new Cmd()
+        CmdQuerryHighScoreCmpanys.prototype.prepData=function(){
+            this.mMustContainKeys=mHistoryOks.keysArr
+            $('#idsearchkey').val($('#idselScoreCompanys').val().split(':')[0])
+        }
+        CmdQuerryHighScoreCmpanys.prototype.showorhideElement=function(bshow){
+            if(bshow){
+                $("#idselScoreCompanys").show()
+                $("#idsearchkey").show()
+            }else{
+                $("#idselScoreCompanys").hide()
+                $("#idsearchkey").hide()
+            }
+        }
+        CmdQuerryHighScoreCmpanys.prototype.isInputValid=function(){return true}
+        CmdQuerryHighScoreCmpanys.prototype.onSuccessRes=function(data){
+            if(!companyLoopQuerry("#idselScoreCompanys",this.cmdName,this.mUserStoped)){
+                dbg("Cmd["+this.cmdName+"] "+this.mStartTm+"====>"+(new Date()))
+                return false
+            }
+            return true
+        }
+        //==============CmdScanHighScoreCmpanys===========
+        function CmdScanHighScoreCmpanys(){
+            Cmd.call(this)
+            this.cmdName="Cmd_scan_high_score_companys"
+            this.mSeverAction=SEVER_ACTION_SCAN_COMPANY_SCORE_TO_DB
+            this.isLoopScan=false
+        }
+        CmdScanHighScoreCmpanys.prototype=new Cmd()
+        CmdScanHighScoreCmpanys.prototype.prepData=function(){
+            this.mMustContainKeys=mHistoryOks.keysArr
+        }
+        CmdScanHighScoreCmpanys.prototype.showorhideElement=function(bshow){
+            if(bshow){
+                $("#idsearchkey").show()
+            }else{
+                $("#idsearchkey").hide()
+            }
+        }
+        CmdScanHighScoreCmpanys.prototype.onStart=function(){
+            Cmd.prototype.onStart.apply(this) //call parent function first 
+            if($(this.mIdSearchKey).val().length<2){
+                this.isLoopScan=true
+            }else{
+                this.isLoopScan=false
+            }
+            dbg("CmdScanHighScoreCmpanys onStart,isLoopScan="+this.isLoopScan)
+        }
+        CmdScanHighScoreCmpanys.prototype.isInputValid=function(){
+            $('#idsearchkey').val($('#idhistorykey').val())           
+            return true
+        }
+        CmdScanHighScoreCmpanys.prototype.prepData=function(){
+            dbg("CmdScanHighScoreCmpanys prepData,isLoopScan="+this.isLoopScan)
+            if(this.isLoopScan) {
+                $('#idsearchkey').val($('#idhistorykey').val())
+            }
+        }
+        CmdScanHighScoreCmpanys.prototype.onSuccessRes=function(data){
+            dbg("CmdScanHighScoreCmpanys onSuccessRes,isLoopScan="+this.isLoopScan)
+            if(!this.isLoopScan || this.mUserStoped||!companyLoopQuerry("#idhistorykey",this.cmdName,this.mUserStoped)){
+                dbg("Cmd["+this.cmdName+"] "+this.mStartTm+"====>"+(new Date()))
+                return false
+            }
+            return true
+        }
+       //=============CmdShowHighScoreCmpanys==========
+        function CmdShowHighScoreCmpanys(){
+            Cmd.call(this)
+            this.cmdName="Cmd_show_high_score_companys"
+            this.mExtraCmd="LIST_HIGH_COMPANY"
+        }
+        CmdShowHighScoreCmpanys.prototype=new Cmd()
+        CmdShowHighScoreCmpanys.prototype.showorhideElement=function(bshow){
+            if(bshow){
+                $("#idsearchkey").show()
+                $("#idselScoreCompanys").show()
+            }else{
+                $("#idselScoreCompanys").hide()
+                $("#idsearchkey").hide()
+            }
+        }
+        CmdShowHighScoreCmpanys.prototype.saveSetting=function(){
+        }
+        CmdShowHighScoreCmpanys.prototype.onSuccessRes=function(data){
+            initSel("#idselScoreCompanys",data.res)
+            dbg("companys num="+$("#idselScoreCompanys option").length)
+        }
+
+
+        function companyLoopQuerry(idselcmp,cmdName,userStoped){
+            //var idselcmp=(sechtype==0?"#idselCompanys":"#idselScoreCompanys")
+            if(userStoped){
+                dbg("["+cmdName+"] User stoped")
+                return false
+            }
+           
+            var curIndex=$(idselcmp).get(0).selectedIndex
+            var maxIndex=$(idselcmp +' option').length-1
+            dbg("curIndex="+curIndex+",maxIndex="+maxIndex)
+            if(curIndex<maxIndex){//querry company one by one
+                curIndex++
+                $(idselcmp).get(0).selectedIndex=curIndex
+                querry()
+            }
+            return curIndex<maxIndex
+       }
+
+        var curCmd=new CmdQuerry()
+        var preCmd=curCmd
+
+        function querry(){
+            curCmd.mUserStoped=false
+            if(! curCmd.isInputValid()){
+                return
+            }
+            curCmd.saveSetting()
+            curCmd.prepData()
+            var postdata=curCmd.getQuerryJson()
+            if($("#idselKeytype").val()==2){//querry with full text
+                mHistoryOks.addKey(postdata.searchkey)
+            }
+            dbg("loading...")
+            var aj = $.ajax( { 
+                type:'post',
+                cache:'false',
+                data:JSON.stringify(postdata),
+                success:function(data){
+		            data = JSON.parse(data);
+                    dbg("querry post res="+data.code)
+                    curCmd.onSuccessRes(data)
+                },
+                error:function(){
+                    dbg("error");
+                },
+
+            }); 
+        }
+        function oncompanychanged(){
+        }
+        function initSel(idOption,keysArr){
+            $(idOption).empty()
+            for( var key in keysArr){
+                $(idOption).append("<option>"+keysArr[key]+"</option>")
+            }
+        }
+       function HistoryOptionKeys(idOption){
+            this.idOption=idOption
+            this.keysArr=new Array
+       }
+       HistoryOptionKeys.prototype={
+        initLs:function(){
+             if(typeof localStorage.lastSearchKeys != "undefined"){
+                var lastSearchKeys=new Array()
+                lastSearchKeys=JSON.parse(localStorage.lastSearchKeys);
+                dbg("lastSearchKeys="+lastSearchKeys)
+                this.init(lastSearchKeys)
+            }
+       
+        },
+        init:function(keysArr){
+            this.keysArr=keysArr
+                for( var key in keysArr){
+                    $(this.idOption).append("<option>"+keysArr[key]+"</option>")
+                }
+
+       },
+       storyLs:function(){
+            localStorage.lastSearchKeys=JSON.stringify(this.keysArr)
+       },
+        addKey:function(key,initflag){
+            if($.inArray(key,this.keysArr)==-1){
+                $(this.idOption).append("<option>"+key+"</option>")
+                dbg("select len="+$(this.idOption).length)
+                this.keysArr.push(key)
+                this.storyLs()
+            }
+       },
+         rmCurKey:function(){
+         
+            this.keysArr.pop($(this.idOption).val())
+            $(this.idOption).get(0).options.remove($(this.idOption).get(0).selectedIndex)
+                this.storyLs()
+       },
+       }
+
+        var mHistoryOks=new HistoryOptionKeys("#idhistorykey")
+
+        $(document).ready(function(){
+            mHistoryOks.initLs()
+        });
+        function test(){
+            //dbg(unescape("{\u82e5\u9690\u82e5\u73b0}"))
+            //dbg(unescape("\u5408\u80a5\u4e2d\u7ee7\u4fe1\u606f\u79d1\u6280\u6709\u9650\u516c\u53f8"))
+            //dbg(unescape("Android\u8f6f\u4ef6\u5f00\u53d1\u5de5\u7a0b\u5e08"))
+            //var checkIndex=$("#idselCompanys ").get(0).selectedIndex
+            //var maxIndex=$('#idselCompanys option').length //$("#idselCompanys option:last").attr("index")
+            //            $("#idselCompanys ").get(0).selectedIndex=1
+            //delete select item from options
+            //dbg("sel index="+$("#idhistorykey").get(0).selectedIndex)
+            //$("#idhistorykey").get(0).options.remove($("#idhistorykey").get(0).selectedIndex)
+            //mHistoryOks.rmCurKey()
+                 //       cmparr=new Array
+                        //cmparr=JSON.parse("华为技术有限公司:125724,欧莱雅（中国）有限公司:71617");
+                 //       cmparr="HTC:125724,TCL:71617".split(',')
+                 //       initSel("#idselScoreCompanys",cmparr)
+    
+            //dbg($("#idselScoreCompanys").val().split(':')[0]
+
+            c=new CmdQuerryHighScoreCmpanys()
+            //c.showorhideElement(true)
+            //c.saveSetting()
+            //dbg("c.cmdName="+c.cmdName+" c.settingkey="+c.getSettingkey())
+            dbg(c.getSettingkey()+"="+localStorage[c.getSettingkey()])
+            restoryUiFromSetting(JSON.parse(localStorage[c.getSettingkey()]))
+
+        }
+
+
+        function getJobArea(){
+           var areas= new Array()
+           //$('input[name=test]').attr('checked',true);
+           $("input[name='idJobArea']").each(function() {
+                if($(this).is(':checked')) //Lesson jquerry:judge checkbox whether selected
+                    areas.push($(this).attr('value'))
+           })
+            return areas.join(",")
+        }
+
+        function keytypechanged(){
+            $("#idsearchkey").val("")
+            var val=$("#idselKeytype").val()
+            preCmd.showorhideElement(false)
+            preCmd=curCmd
+            if(val==2){
+                curCmd=new CmdQuerry()
+            }else if(val==0){
+                curCmd=new CmdQuerryFavorCmpanys()
+            }else if(val==100){
+                curCmd=new CmdScanHighScoreCmpanys()
+            }else if(val==300){
+                curCmd=new CmdShowHighScoreCmpanys()
+            }else if(val==200){
+                curCmd=new CmdQuerryHighScoreCmpanys()
+            }
+            curCmd.showorhideElement(true)
+            dbg(curCmd.getSettingkey()+"="+localStorage[curCmd.getSettingkey()])
+            restoryUiFromSetting(JSON.parse(localStorage[curCmd.getSettingkey()]))
+        }
+
+        </script>
+  <title>querry</title>
+
+  
+</head><body class="bodybkgrd">
+<br>
+
+2号线
+<input name='idJobArea' type='checkbox' value="579496" checked="ture">龙阳路站</input>
+<input name='idJobArea' type='checkbox' value="579622">世纪公园站</input>
+<input name='idJobArea' type='checkbox' value="579675">上海科技馆站</input>
+<input name='idJobArea' type='checkbox' value="579492">张江高科站</input>
+<input name='idJobArea' type='checkbox' value="579487">广兰路站</input>
+<input name='idJobArea' type='checkbox' value="579682">东昌路站</input>
+ <button onclick='test()' >test</button> 
+<br>
+
+
+
+发布日期
+<select id="idpublishday">
+
+<option value="1">近一天</option>
+<option value="2">近两天</option>
+<option value="3">近三天</option>
+<option value="4">近一周</option>
+</select>
+
+<br>
+
+<select id='idselKeytype' onchange='keytypechanged()'>
+<option value='2'>以全文查询
+<option value='0'>以公司名查询
+<option value='100'>扫描公司粉丝
+<option value='300'>查询本地粉丝多的公司
+<option value='200'>以公司粉丝排名查询
+</select>
+<textarea cols="20" rows="1" id="idsearchkey"></textarea>
+history<select id='idhistorykey' onchange="$('#idsearchkey').val($('#idhistorykey').val())" ><select>
+
+
+<select id='idselCompanys' onchange='oncompanychanged()' style="display: none" >
+<option>IBM China
+<option>HTC
+<option>华为技术
+<option>中兴通讯
+<option>腾讯计算机
+<option>TCL
+<option>爱立信
+<option>小米科技
+<option>阿里巴巴
+<option>QUALCOMM
+<option>联想
+<option>英特尔
+<option>惠普
+<option>UC优视
+<option>京东金融集团
+<option>三星电子
+<option>思科系统
+<option>英伟达
+<option>AMD
+<option>国家仪器
+</select>
+
+<select id="idselScoreCompanys" style="display: none"></select>
+
+<br>
+<button onclick="startquerry()">查询</button>
+<button onclick="stopquerry()">停止</button>
+<br>
+
+
+<p><a href="/jobfind/index">View getted jobs</a></p>
+<p><a href="/jobfind/viewljobs">View local jobs</a></p>
+
+<br>
+<p id='console'></p>
+</body></html>

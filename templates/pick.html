@@ -1,0 +1,224 @@
+<html>
+    <head>
+        <script type="text/javascript" src="{{static_url("js/jquery-1.10.1.js")}}"></script>
+        <script type="text/javascript" src="{{static_url("js/jscolor/jscolor.js")}}"></script>
+        <style type="text/css">
+        a:link {
+            color:#000000;
+            text-decoration:underline;
+        }
+        .clearfix:after {
+            content: ".";
+            display: block;
+            height: 0;
+            clear: both;
+            visibility: hidden;
+        }
+
+        </style>
+        <script language="javascript">
+        var startId=0;
+        var totalRcd=0;
+        var current=0;
+        var endId=0
+        function dbg(msg){
+            $("#console").text(msg);
+        }
+        
+        PREV_KEYCODE=37
+        NEXT_KEYCODE=39
+        function keyDown(e) { 
+            var keycode = e.which; 
+            var realkey = String.fromCharCode(e.which); 
+            var t="keycode: " + keycode + " charcode: " + realkey;
+            dbg(t);
+            if(keycode==PREV_KEYCODE){ //prev
+                current-=1;
+                if(current<startId){current=startId}
+                $("#idcur").text(current);
+                showRcd(current);
+            }else if(keycode==NEXT_KEYCODE){//next
+                current+=1;
+                if(current>endId){current=endId}
+                $("#idcur").text(current);
+                showRcd(current);
+            }else {
+                newstatus=""
+                if(keycode==78){//N:null
+                    newstatus="null"
+                }else if(keycode==71){//G:get
+                    newstatus="get"
+                }else if(keycode==87){//W:
+                    newstatus="watch"
+                }
+                if(newstatus.length>0)
+                    modifyStatus(current,newstatus)
+            }
+
+            //alert("keycode: " + keycode + " charcode: " + realkey); 
+        } 
+        function shouldIngoreJob(job){
+            for(var i in mIgnoreKeys){
+                if(job.job.indexOf(mIgnoreKeys[i])>=0){
+                }
+            }
+        }
+        function initHtml(){
+            var picdiv='<div id="myfirstchart" style="height: 400px;"></div>'
+
+        }
+        function showData(jsondata){
+        }
+        function showRcd(id){
+             var aj = $.ajax( { 
+                url:"/pick/"+id,
+                type:'get',
+                cache:'false',
+                success:function(data){
+                    if(data.msg =="true" ){    
+                    // view("修改成功！");    
+                    dbg("修改成功！");    
+                    }else{    
+                    //$("#content").text(unescape(data));
+                    //Lesson:json: use eval convert string to json object,and  also change unicaode(\ue342 ...) to utf8
+                    job=eval ("(" + data + ")"); 
+                    job=eval ("(" + job.res + ")"); 
+
+                    $("#coname").html("<a href='"+job.houseUrl+"' target='_blank' >"+job.houseTitle+"<a/>");
+                    desc="交通距离"+job.distance+"米"+"/价格"+job.money+"元"
+                    $("#job").html(desc);
+                    $("#jstate").text(job.status)
+                    /*$("#idjloc").text(job.local)
+                    $("#idCompScore").text(" score["+job.compScore+"]")*/
+                    totalRcd=job.jobsCnt
+                    endId=startId+totalRcd;
+                    $("#idend").text(":"+endId)
+                    //testrn(job.jd)
+                    } 
+                },
+                error:function(){
+                    dbg("error");
+                },
+
+            }); 
+            localStorage.lastIndex=id
+       }
+        document.onkeydown = keyDown;
+         function modifyStatus(id,newstatus){
+            postdata={
+                status:newstatus,
+            }
+             var aj = $.ajax( { 
+                url:"modify/"+current+"/",
+                type:'post',
+                cache:'false',
+                data:postdata,
+                success:function(data){
+                    dbg("ok,data="+data) 
+                    $("#jstate").text(newstatus)
+                },
+                error:function(){
+                    dbg("error");
+                },
+
+            }); 
+       }
+      function testrn(str){
+            alert(str)
+       }
+        $(document).ready(function(){
+            startId={{start_id}}; //template variables
+            totalRcd={{total_rcd}};
+            if(typeof localStorage.lastIndex == "undefined"){ //Lesson js html5:localstorage judge undefined value
+                current=startId
+            }else{
+                current=parseInt(localStorage.lastIndex);
+            }
+            if(typeof localStorage.bkgroundcolor != "undefined"){
+                changeBkColor(localStorage.bkgroundcolor)
+            }
+            endId=startId+totalRcd;
+            $("#idcur").text(current);
+            $("#idstart").text(startId+":")
+            $("#idend").text(":"+endId)
+            $("#idtextareacur").hide()
+            $("#idIgoreKeys").val(localStorage.ignoreKeys)
+        });
+        function changeIngoreKeys(){
+            var keys=$("#idIgoreKeys").val()
+            dbg("changeIngoreKeys keys="+keys)
+            mIgnoreKeys=keys.split(" ")
+            localStorage.ignoreKeys=keys
+        }
+        function test(){
+            //dbg(unescape("{\u82e5\u9690\u82e5\u73b0}"))
+            //dbg(unescape("\u5408\u80a5\u4e2d\u7ee7\u4fe1\u606f\u79d1\u6280\u6709\u9650\u516c\u53f8"))
+            //dbg(unescape("Android\u8f6f\u4ef6\u5f00\u53d1\u5de5\u7a0b\u5e08"))
+        }
+        function submitres(){
+            var check=confirm("submit data status to local db?")
+            if(check){
+              var aj = $.ajax( { 
+                url:"submitstatus",
+                type:'post',
+                cache:'false',
+                success:function(data){
+                    localStorage.removeItem("lastIndex")
+                },
+                error:function(){
+                    dbg("error");
+                },
+
+            }); 
+               
+            }
+        }
+
+        function showInput(){
+            var t=$("#idcur").text()
+            $("#idcur").hide()
+            $("#idtextareacur").val(t)
+            $("#idtextareacur").show()
+        }
+        function showCur(){
+            var t=$("#idtextareacur").val()
+            $("#idcur").show()
+            $("#idtextareacur").hide()
+            $("#idcur").text(t)
+            current=Number(t)
+            showRcd(current);
+        }
+        function changeBkColor(color){
+            $('body').css('background-color','#'+color)
+            localStorage.bkgroundcolor=color
+        }
+        </script>
+        
+    </head>
+    
+    <body  class='bodybkgrd'>
+        <table>
+            <tr>
+                <td><span id='idstart'></span><input id='idtextareacur' value='99' type='text' onchange='showCur()' ><span id='idcur' onclick='showInput()'></span><span id='idend'></span></td>
+                <td><input type='button' value='submit' onclick='submitres()'></input></td>
+                <td><a href="/jobfind/querry">querry jobs</a></td>
+            </tr>
+        </table>
+        <!-- http://jscolor.com/try.php#onchange  -->
+        <input id='idcolorpicker' class='color'  onchange="changeBkColor(this.color)">
+        <input type='text' id='idIgoreKeys' onchange="changeIngoreKeys()">
+        <!--
+        <button onclick='test()'>test2</button>
+        -->
+        <p></p>
+        <p></p>
+        <p></p>
+            <div style="width:1300px;border:1px solid red;" class="clearfix">
+            <div id='idivJob' style="width:1100px;float:left;">
+            </div>
+            <div id='idivIgnoredJob' style="width:200px;float:left;border:1px;">
+                <p>ignored jobs tests asdf asdfa afas</p>
+            </div>
+        </div>
+    </body>
+</html>
